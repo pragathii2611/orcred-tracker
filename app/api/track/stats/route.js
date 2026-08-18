@@ -29,15 +29,15 @@ export async function GET() {
       const s = students[row.student_id]
 
       if (row.event === 'open') {
-        if (row.is_bot) {
-          s.opened_apple = true
-        } else {
-          if (!s.opened_real) {
-            s.opened_real = true
-            s.open_time = row.created_at
-          }
-        }
-      }
+  if (row.is_bot) {
+    s.opened_apple = true  // covers all bots now — apple + too fast
+  } else {
+    if (!s.opened_real) {
+      s.opened_real = true
+      s.open_time = row.created_at
+    }
+  }
+}
 
       if (row.event === 'click') {
         if (!s.clicked) {

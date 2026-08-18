@@ -4,25 +4,33 @@ const PIXEL = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   'base64'
 )
-
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const studentId = searchParams.get('id') || 'unknown'
     const email = searchParams.get('email') || ''
+    const sentAt = parseInt(searchParams.get('sent') || '0')
     const userAgent = request.headers.get('user-agent') || ''
+    const now = Math.floor(Date.now() / 1000)
 
+    // Detect Apple MPP by user agent
     const isAppleMPP =
       (userAgent.includes('Apple') || userAgent.includes('AppleWebKit')) &&
       !userAgent.includes('Chrome') &&
       !userAgent.includes('Firefox') &&
       !userAgent.includes('Thunderbird')
 
+    // Detect prefetch by time — if opened within 10 seconds of send
+    // it's almost certainly a bot or scanner not a human
+    const tooFast = sentAt > 0 && (now - sentAt) < 10
+
+    const isBot = isAppleMPP || tooFast
+
     await supabase.from('email_events').insert({
       student_id: studentId,
       email: decodeURIComponent(email),
       event: 'open',
-      is_bot: isAppleMPP,
+      is_bot: isBot,
       user_agent: userAgent.slice(0, 300)
     })
 
