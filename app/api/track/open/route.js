@@ -11,20 +11,37 @@ export async function GET(request) {
     const email = searchParams.get('email') || ''
     const sentAt = parseInt(searchParams.get('sent') || '0')
     const userAgent = request.headers.get('user-agent') || ''
+    const ip = request.headers.get('x-forwarded-for') || 
+               request.headers.get('x-real-ip') || ''
     const now = Math.floor(Date.now() / 1000)
 
-    // Detect Apple MPP by user agent
+    // Bot detection — multiple signals
     const isAppleMPP =
       (userAgent.includes('Apple') || userAgent.includes('AppleWebKit')) &&
       !userAgent.includes('Chrome') &&
       !userAgent.includes('Firefox') &&
       !userAgent.includes('Thunderbird')
 
-    // Detect prefetch by time — if opened within 10 seconds of send
-    // it's almost certainly a bot or scanner not a human
+    // Too fast — opened within 10 seconds of send
     const tooFast = sentAt > 0 && (now - sentAt) < 10
 
-    const isBot = isAppleMPP || tooFast
+    // Known bot user agents
+    const botAgents = [
+      'bot', 'crawler', 'spider', 'preview',
+      'google', 'yahoo', 'bing', 'baidu',
+      'scan', 'check', 'validator', 'proxy',
+      'outlook', 'thunderbird link preview',
+      'microsoft', 'barracuda', 'mimecast',
+      'proofpoint', 'symantec', 'trend micro'
+    ]
+    const isBotAgent = botAgents.some(b =>
+      userAgent.toLowerCase().includes(b)
+    )
+
+    // No user agent at all — definitely a bot
+    const noAgent = !userAgent || userAgent.trim() === ''
+
+    const isBot = isAppleMPP || tooFast || isBotAgent || noAgent
 
     await supabase.from('email_events').insert({
       student_id: studentId,
